@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "node dev-server.js",
-    "dev:serverless": "serverless offline start --port 3001",
+    "dev:serverless": "serverless offline start",
     "deploy": "serverless deploy",
     "deploy:dev": "serverless deploy --stage dev",
     "deploy:prod": "serverless deploy --stage prod",

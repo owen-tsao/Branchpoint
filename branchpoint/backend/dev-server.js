@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const { generatePathForward } = require('./bedrock-dev');
 const app = express();
 const port = 3002;
 
@@ -23,6 +24,30 @@ const getUserId = (req) => {
 // Routes
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'BranchPoint API is running' });
+});
+
+// Clear all data (for development)
+app.post('/clear-all', (req, res) => {
+  decisions.length = 0;
+  branches.length = 0;
+  conversations.length = 0;
+  comparisons.length = 0;
+  events.length = 0;
+  decisionGroups.length = 0;
+  
+  console.log('🧹 Cleared all data');
+  res.json({ 
+    status: 'success', 
+    message: 'All data cleared',
+    counts: {
+      decisions: decisions.length,
+      branches: branches.length,
+      conversations: conversations.length,
+      comparisons: comparisons.length,
+      events: events.length,
+      decisionGroups: decisionGroups.length
+    }
+  });
 });
 
 
@@ -153,7 +178,8 @@ app.post('/simulate', async (req, res) => {
       decisionTitle: decision.title,
       branchName: branch.name,
       branchDescription: branch.description,
-      personaStyle
+      personaStyle,
+      decisionContext: decision.description ? 'Enhanced description available' : 'No enhanced description'
     });
 
     // Use real Bedrock function for simulation
@@ -319,7 +345,7 @@ app.post('/generate-branches', async (req, res) => {
 
 // Generate Follow-up Decisions
 app.post('/generate-followup-decisions', async (req, res) => {
-  const { originalDecision, chosenPath, simulationResult } = req.body;
+  const { originalDecision, chosenPath, simulationResult, decisionContext } = req.body;
   
   if (!originalDecision || !chosenPath) {
     return res.status(400).json({ error: 'Original decision and chosen path are required' });
@@ -329,12 +355,13 @@ app.post('/generate-followup-decisions', async (req, res) => {
     console.log('🤖 Using Claude AI to generate follow-up decisions for:', {
       originalDecision,
       chosenPath,
-      simulationResult
+      simulationResult,
+      decisionContext: decisionContext ? 'Enhanced context available' : 'No enhanced context'
     });
 
     // Use real Bedrock function
     const { generateFollowUpDecisions } = require('./bedrock-js');
-    const result = await generateFollowUpDecisions(originalDecision, chosenPath, simulationResult);
+    const result = await generateFollowUpDecisions(originalDecision, chosenPath, simulationResult, decisionContext);
     
     console.log('✅ Generated follow-up decisions:', result);
     
@@ -647,53 +674,29 @@ app.get('/decisions/groups', (req, res) => {
   });
 });
 
-// Generate Path Forward
-app.post('/generate-path-forward', (req, res) => {
+// Generate Path Forward - Now uses Claude API with fallback to mock responses
+app.post('/generate-path-forward', async (req, res) => {
   const { originalDecision, chosenPath, pathDescription } = req.body;
   
   if (!originalDecision || !chosenPath || !pathDescription) {
     return res.status(400).json({ error: 'Original decision, chosen path, and path description are required' });
   }
 
-  console.log('Generating path forward for:', { originalDecision, chosenPath, pathDescription });
-  console.log('Checking conditions:', {
-    originalDecisionLower: originalDecision.toLowerCase(),
-    chosenPathLower: chosenPath.toLowerCase(),
-    hasOilField: originalDecision.toLowerCase().includes('oil field'),
-    hasNegotiate: chosenPath.toLowerCase().includes('negotiate')
-  });
+  console.log('🚀 Generating path forward for:', { originalDecision, chosenPath, pathDescription });
 
-  // Generate contextual path forward content based on decision and choice
-  let pathForward = {};
-  
-  if (originalDecision.toLowerCase().includes('oil field') && chosenPath.toLowerCase().includes('negotiate')) {
-    pathForward = {
-      actionPlan: `For oil field negotiation, research current industry pay scales for your specific role and location. Study union contracts and safety pay structures. Document your experience with hazardous work conditions, certifications, and specialized skills. Prepare a detailed case for hazard pay, overtime rates, and safety bonuses.`,
-      potentialOutcomes: `Successful negotiation in oil field work typically results in 15-25% higher base pay, improved safety pay rates, better overtime compensation, and enhanced benefits packages. You could see immediate financial gains within 1-2 months of starting negotiations.`,
-      nextSteps: `1) Research current oil field pay scales on Rigzone and OilCareers 2) Join relevant unions like USW or IAM 3) Document all safety certifications and hazardous work experience 4) Schedule meeting with HR or supervisor 5) Present data-driven case for better compensation`,
-      timeline: `Week 1-2: Research and data collection. Week 3-4: Prepare negotiation materials and schedule meetings. Week 5-6: Conduct negotiations and follow up. Month 2-3: Implement new compensation structure.`,
-      resources: `Rigzone salary surveys, OilCareers job postings, USW union resources, OSHA safety training records, industry-specific negotiation guides, and local oil field worker networks.`
-    };
-  } else if (originalDecision.toLowerCase().includes('oil field') && chosenPath.toLowerCase().includes('accounting')) {
-    pathForward = {
-      actionPlan: `Transition from oil field to accounting requires obtaining CPA certification and relevant accounting experience. Start by taking accounting courses, gaining bookkeeping experience, and preparing for the CPA exam. Consider oil and gas accounting specialization for industry relevance.`,
-      potentialOutcomes: `Accounting offers more stable income, better work-life balance, and long-term career growth. Starting salary may be lower initially, but CPA certification can lead to 6-figure salaries within 3-5 years.`,
-      nextSteps: `1) Enroll in accounting courses or degree program 2) Gain bookkeeping experience 3) Study for CPA exam 4) Network with oil and gas accountants 5) Apply for entry-level accounting positions`,
-      timeline: `Month 1-6: Complete accounting education. Month 7-12: Gain practical experience and study for CPA. Year 2: Pass CPA exam and secure accounting position. Year 3+: Advance in accounting career.`,
-      resources: `AICPA resources, accounting degree programs, CPA exam prep courses, oil and gas accounting firms, professional accounting associations, and industry-specific accounting software training.`
-    };
-  } else {
-    // Generic fallback
-    pathForward = {
-      actionPlan: `Based on your decision "${originalDecision}" and chosen path "${chosenPath}", here's your detailed action plan. Research industry-specific requirements and best practices. Network with professionals in this field. Create a step-by-step implementation plan with clear milestones.`,
-      potentialOutcomes: `By pursuing "${chosenPath}" in the context of "${originalDecision}", you can expect to see positive changes within 3-6 months. This could include improved career prospects, better work-life balance, or increased earning potential.`,
-      nextSteps: `1) Research specific requirements for "${chosenPath}" in your industry 2) Network with professionals who have made similar transitions 3) Create a detailed timeline with specific milestones 4) Start taking concrete action steps this week 5) Monitor progress and adjust your approach as needed`,
-      timeline: `Month 1-2: Research and planning phase. Month 3-4: Active implementation and skill development. Month 5-6: Evaluation and refinement of your approach.`,
-      resources: `Industry-specific job boards, professional associations, networking events, online courses, mentors in your field, and relevant certification programs.`
-    };
+  try {
+    // Use the new implementation that tries Claude first, falls back to mock
+    const pathForward = await generatePathForward(originalDecision, chosenPath, pathDescription);
+    
+    console.log('✅ Path forward generated successfully');
+    res.json({ pathForward });
+  } catch (error) {
+    console.error('❌ Error generating path forward:', error);
+    res.status(500).json({ 
+      error: 'Failed to generate path forward',
+      message: error.message 
+    });
   }
-
-  res.json({ pathForward });
 });
 
 // Check if clarification is needed

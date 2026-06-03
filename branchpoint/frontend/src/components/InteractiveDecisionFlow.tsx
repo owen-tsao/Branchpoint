@@ -229,7 +229,8 @@ export const InteractiveDecisionFlow: React.FC<InteractiveDecisionFlowProps> = (
       const followUpResponse = await apiClient.generateFollowUpDecisions(
         decision.title,
         choiceText,
-        simulationResult
+        simulationResult,
+        decision.description // Pass the enhanced description as context
       );
       
           console.log('Follow-up response:', followUpResponse);

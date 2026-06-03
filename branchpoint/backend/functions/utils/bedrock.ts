@@ -12,13 +12,20 @@ export const generateSimulation = async (
 ): Promise<BedrockResponse> => {
   const prompt = `You are Future-You one year from now. You experienced choosing "${branchName}" for the decision "${decisionTitle}". 
 
-Decision Context: ${decisionDescription || 'No additional context provided'}
+DECISION CONTEXT (CRITICAL - Use this extensively):
+${decisionDescription || 'No additional context provided'}
 
-Branch Description: ${branchDescription}
+BRANCH DESCRIPTION:
+${branchDescription}
 
-Use the decision context to create a more personalized and realistic simulation. The decision context contains important details about your situation, motivations, and circumstances that should inform your future-self reflection.
+INSTRUCTIONS:
+- The decision context above contains detailed information about the user's specific situation, motivations, background, and circumstances gathered through AI clarifying questions
+- Use this context extensively to create a highly personalized and realistic simulation
+- Reference specific details from the decision context in your scenarios and questions
+- Show that you understand their unique situation, not just generic advice
+- Make the simulation feel like it's truly about THEIR specific decision and circumstances
 
-Speak from first-person and be reflective. Produce 5 probing questions that would have helped you make this choice, an optimistic scenario (short paragraph), a challenging scenario (short paragraph), and a short summary of the major tradeoffs.
+Create a first-person reflection that demonstrates deep understanding of their situation. Produce 5 probing questions that would have helped you make this choice, an optimistic scenario (short paragraph), a challenging scenario (short paragraph), and a short summary of the major tradeoffs.
 
 Persona Style: ${personaStyle === 'analytical' ? 'Focus on data, metrics, and logical analysis' : 'Focus on emotions, relationships, and personal impact'}
 
@@ -170,10 +177,122 @@ Generate a comparison analysis in JSON format:
 };
 
 
+// Helper function to generate contextual fallback decisions
+const generateContextualFallbackDecisions = (originalDecision: string, chosenPath: string) => {
+  const decision = originalDecision.toLowerCase();
+  const path = chosenPath.toLowerCase();
+  
+  // Generate specific decisions based on the context
+  if (decision.includes('college') || decision.includes('university') || decision.includes('school')) {
+    if (path.includes('uw') || path.includes('washington')) {
+      return [
+        {
+          name: 'Join UW Student Organizations',
+          description: 'Get involved in campus clubs and activities to build your network and explore interests'
+        },
+        {
+          name: 'Apply for UW Research Opportunities',
+          description: 'Seek out undergraduate research positions in your field of study'
+        },
+        {
+          name: 'Plan Your UW Housing Strategy',
+          description: 'Research and secure the best housing option for your UW experience'
+        },
+        {
+          name: 'Connect with UW Alumni',
+          description: 'Reach out to UW graduates in your field for mentorship and career guidance'
+        }
+      ];
+    } else if (path.includes('purdue')) {
+      return [
+        {
+          name: 'Explore Purdue Engineering Programs',
+          description: 'Dive deep into Purdue\'s renowned engineering curriculum and specializations'
+        },
+        {
+          name: 'Apply for Purdue Scholarships',
+          description: 'Research and apply for merit-based and need-based financial aid opportunities'
+        },
+        {
+          name: 'Plan Your Purdue Campus Visit',
+          description: 'Schedule a comprehensive campus tour to experience Purdue\'s culture firsthand'
+        },
+        {
+          name: 'Connect with Purdue Faculty',
+          description: 'Reach out to professors in your intended major for academic guidance'
+        }
+      ];
+    }
+  }
+  
+  if (decision.includes('job') || decision.includes('career') || decision.includes('work')) {
+    return [
+      {
+        name: 'Negotiate Your Offer Package',
+        description: 'Review and negotiate salary, benefits, and other compensation details'
+      },
+      {
+        name: 'Prepare for Your First 90 Days',
+        description: 'Create a plan to make a strong impression and establish yourself in the role'
+      },
+      {
+        name: 'Build Your Professional Network',
+        description: 'Connect with colleagues, industry professionals, and potential mentors'
+      },
+      {
+        name: 'Set Up Your Workspace',
+        description: 'Organize your work environment and establish productive routines'
+      }
+    ];
+  }
+  
+  if (decision.includes('relationship') || decision.includes('marriage') || decision.includes('partner')) {
+    return [
+      {
+        name: 'Plan Your Next Date',
+        description: 'Organize a meaningful activity to strengthen your connection'
+      },
+      {
+        name: 'Discuss Future Goals Together',
+        description: 'Have an open conversation about your shared vision and individual aspirations'
+      },
+      {
+        name: 'Meet Each Other\'s Friends',
+        description: 'Integrate your social circles and build relationships with important people in their life'
+      },
+      {
+        name: 'Plan a Special Celebration',
+        description: 'Mark this milestone with a memorable experience or gathering'
+      }
+    ];
+  }
+  
+  // Generic but more specific fallback
+  return [
+    {
+      name: 'Take Immediate Action',
+      description: 'Start implementing your decision with concrete first steps'
+    },
+    {
+      name: 'Gather More Information',
+      description: 'Research and learn more about your chosen path to ensure success'
+    },
+    {
+      name: 'Build Your Support System',
+      description: 'Connect with people who can help you succeed in this new direction'
+    },
+    {
+      name: 'Plan Your Next Milestone',
+      description: 'Set specific goals and timelines for your continued progress'
+    }
+  ];
+};
+
 export const generateFollowUpDecisions = async (
   originalDecision: string,
   chosenPath: string,
-  simulationResult: any
+  simulationResult: any,
+  decisionContext?: string
 ): Promise<{
   storyline: string;
   followUpDecisions: Array<{ name: string; description: string }>;
@@ -184,6 +303,7 @@ export const generateFollowUpDecisions = async (
 Original Decision: "${originalDecision}"
 Chosen Path: "${chosenPath}"
 Simulation Results: ${JSON.stringify(simulationResult, null, 2)}
+${decisionContext ? `Decision Context (Use this extensively): ${decisionContext}` : ''}
 
 Create a detailed, specific storyline (2-3 paragraphs) showing how their life unfolds over 6-12 months after making this choice.
 
@@ -240,7 +360,14 @@ Output JSON matching this exact schema:
       throw new Error('No content in response');
     }
     
-    const jsonMatch = content!.match(/\{[\s\S]*\}/);
+    // Clean the content to remove control characters and fix JSON formatting
+    const cleanedContent = content
+      .replace(/[\x00-\x1F\x7F]/g, '') // Remove control characters
+      .replace(/\n/g, '\\n') // Escape newlines
+      .replace(/\r/g, '\\r') // Escape carriage returns
+      .replace(/\t/g, '\\t'); // Escape tabs
+    
+    const jsonMatch = cleanedContent.match(/\{[\s\S]*\}/);
     
     if (!jsonMatch) {
       throw new Error('No valid JSON found in response');
@@ -251,40 +378,14 @@ Output JSON matching this exact schema:
     // Return AI-generated storyline and follow-up decisions
     return {
       storyline: parsed.storyline || 'Your journey continues...',
-      followUpDecisions: parsed.followUpDecisions || [
-        {
-          name: 'Continue Current Path',
-          description: 'Stay committed to your chosen direction and see where it leads'
-        },
-        {
-          name: 'Pivot Strategy',
-          description: 'Adjust your approach based on new information and experiences'
-        },
-        {
-          name: 'Explore New Opportunities',
-          description: 'Look for additional options that have emerged from your choice'
-        }
-      ]
+      followUpDecisions: parsed.followUpDecisions || generateContextualFallbackDecisions(originalDecision, chosenPath)
     };
   } catch (error) {
     console.error('Bedrock follow-up decisions error:', error);
-    // Fallback response with hardcoded categories
+    // Fallback response with contextual decisions
     return {
       storyline: `After choosing "${chosenPath}", your life takes an interesting turn. The decision brings both expected and unexpected changes, opening new doors while presenting fresh challenges. You find yourself at a crossroads, ready to make the next important choice in your journey.`,
-      followUpDecisions: [
-        {
-          name: 'Continue Current Path',
-          description: 'Stay committed to your chosen direction and see where it leads'
-        },
-        {
-          name: 'Pivot Strategy',
-          description: 'Adjust your approach based on new information and experiences'
-        },
-        {
-          name: 'Explore New Opportunities',
-          description: 'Look for additional options that have emerged from your choice'
-        }
-      ]
+      followUpDecisions: generateContextualFallbackDecisions(originalDecision, chosenPath)
     };
   }
 };
@@ -893,6 +994,52 @@ export const generateDecisionSummary = async (
 };
 
 
+// Helper function to generate contextual path forward fallback
+const generateContextualPathForward = (originalDecision: string, chosenPath: string, pathDescription: string) => {
+  const decision = originalDecision.toLowerCase();
+  const path = chosenPath.toLowerCase();
+  
+  // Generate specific content based on the context
+  if (decision.includes('college') || decision.includes('university') || decision.includes('school')) {
+    if (path.includes('research') || path.includes('assistant')) {
+      return {
+        actionPlan: `To successfully apply for a research assistant position, start by identifying professors whose research aligns with your interests. Review their recent publications and ongoing projects to understand their work.`,
+        potentialOutcomes: `Within 2-3 months, you could secure a research position that provides hands-on experience, potential publications, and valuable mentorship from faculty members.`,
+        nextSteps: `1) Research faculty members in your department 2) Read their recent papers 3) Draft a compelling email introducing yourself 4) Prepare a resume highlighting relevant coursework 5) Schedule office hours to discuss opportunities`,
+        timeline: `Week 1-2: Research faculty and their work. Week 3-4: Draft applications and reach out. Week 5-8: Follow up and interview. Month 2-3: Begin research work.`,
+        resources: `Faculty websites, academic databases (Google Scholar, ResearchGate), department newsletters, graduate student mentors, and your academic advisor.`
+      };
+    } else if (path.includes('internship') || path.includes('tech')) {
+      return {
+        actionPlan: `Focus on building a strong technical portfolio and networking with industry professionals. Attend tech meetups, work on personal projects, and leverage UW's strong tech connections.`,
+        potentialOutcomes: `You could land a competitive internship at a major tech company within 3-4 months, gaining valuable industry experience and potential full-time offers.`,
+        nextSteps: `1) Build a portfolio of coding projects 2) Attend Seattle tech meetups 3) Connect with UW alumni in tech 4) Apply to multiple companies 5) Practice technical interviews`,
+        timeline: `Month 1: Build portfolio projects. Month 2: Network and apply. Month 3: Interview process. Month 4: Secure internship.`,
+        resources: `GitHub for portfolio, LinkedIn for networking, LeetCode for interview prep, UW career services, and Seattle tech community events.`
+      };
+    }
+  }
+  
+  if (decision.includes('job') || decision.includes('career') || decision.includes('work')) {
+    return {
+      actionPlan: `Develop a strategic approach to your chosen career path by identifying key skills needed, building relevant experience, and creating a strong professional network.`,
+      potentialOutcomes: `Within 6-12 months, you should see significant progress in your career development, including new opportunities and skill advancement.`,
+      nextSteps: `1) Identify required skills and certifications 2) Update your resume and LinkedIn profile 3) Network with industry professionals 4) Apply for relevant positions 5) Seek mentorship opportunities`,
+      timeline: `Month 1-2: Skill development and networking. Month 3-4: Application and interview process. Month 5-6: Onboarding and early success.`,
+      resources: `Professional networks, industry publications, online courses, career coaches, and relevant professional associations.`
+    };
+  }
+  
+  // Generic but more specific fallback
+  return {
+    actionPlan: `Create a detailed, step-by-step plan for "${chosenPath}" that includes specific milestones and measurable outcomes.`,
+    potentialOutcomes: `By following this plan, you can expect to see meaningful progress within 2-3 months and significant results within 6 months.`,
+    nextSteps: `1) Break down your goal into smaller tasks 2) Set specific deadlines for each task 3) Identify potential obstacles and solutions 4) Track your progress regularly 5) Adjust your approach as needed`,
+    timeline: `Month 1: Foundation building and initial steps. Month 2-3: Active implementation and progress tracking. Month 4-6: Evaluation and refinement.`,
+    resources: `Relevant books and courses, mentors or advisors, online communities, professional tools, and support networks.`
+  };
+};
+
 export const generatePathForward = async (
   originalDecision: string,
   chosenPath: string,
@@ -956,7 +1103,14 @@ Output JSON matching this exact schema:
       throw new Error('No content in response');
     }
     
-    const jsonMatch = content!.match(/\{[\s\S]*\}/);
+    // Clean the content to remove control characters and fix JSON formatting
+    const cleanedContent = content
+      .replace(/[\x00-\x1F\x7F]/g, '') // Remove control characters
+      .replace(/\n/g, '\\n') // Escape newlines
+      .replace(/\r/g, '\\r') // Escape carriage returns
+      .replace(/\t/g, '\\t'); // Escape tabs
+    
+    const jsonMatch = cleanedContent.match(/\{[\s\S]*\}/);
     
     if (!jsonMatch) {
       throw new Error('No valid JSON found in response');
@@ -973,13 +1127,7 @@ Output JSON matching this exact schema:
     };
   } catch (error) {
     console.error('Bedrock path forward error:', error);
-    // Fallback response
-    return {
-      actionPlan: `Create a detailed plan for "${chosenPath}" by researching best practices and setting specific goals.`,
-      potentialOutcomes: `By pursuing "${chosenPath}", you'll likely see positive changes within 3-6 months.`,
-      nextSteps: `1) Research and gather information 2) Set specific goals 3) Create a timeline 4) Take action 5) Monitor progress`,
-      timeline: `Month 1-2: Planning and preparation. Month 3-4: Active implementation. Month 5-6: Evaluation and adjustment.`,
-      resources: `Educational materials, mentors, professional networks, and relevant tools for your chosen path.`
-    };
+    // Fallback response with contextual content
+    return generateContextualPathForward(originalDecision, chosenPath, pathDescription);
   }
 };

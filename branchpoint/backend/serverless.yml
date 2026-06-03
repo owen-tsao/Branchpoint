@@ -430,3 +430,65 @@ functions:
               - X-Amzn-Trace-Id
               - x-user-id
             allowCredentials: false
+
+  # Generate Clarifying Questions
+  generateClarifyingQuestions:
+    handler: functions/generateClarifyingQuestions.handler
+    timeout: 60
+    events:
+      - http:
+          path: /generate-clarifying-questions
+          method: post
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+              - X-Amzn-Trace-Id
+              - x-user-id
+            allowCredentials: false
+
+  # Generate Decision Summary
+  generateDecisionSummary:
+    handler: functions/generateDecisionSummary.handler
+    timeout: 60
+    events:
+      - http:
+          path: /generate-decision-summary
+          method: post
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+              - X-Amzn-Trace-Id
+              - x-user-id
+            allowCredentials: false
+
+  # Clear All Data (Development)
+  clearAllData:
+    handler: functions/clearAllData.handler
+    events:
+      - http:
+          path: /clear-all
+          method: post
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+              - X-Amzn-Trace-Id
+              - x-user-id
+            allowCredentials: false

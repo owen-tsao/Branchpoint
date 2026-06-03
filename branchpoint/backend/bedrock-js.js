@@ -3,12 +3,13 @@ const { BedrockRuntimeClient, ConverseCommand } = require('@aws-sdk/client-bedro
 
 const client = new BedrockRuntimeClient({ region: process.env.AWS_REGION || 'us-east-1' });
 
-async function generateFollowUpDecisions(originalDecision, chosenPath, simulationResult) {
+async function generateFollowUpDecisions(originalDecision, chosenPath, simulationResult, decisionContext) {
   const prompt = `You are a life simulation AI. Based on the user's original decision, their chosen path, and the simulation results, create a compelling storyline of their life journey and generate specific follow-up decisions.
 
 Original Decision: "${originalDecision}"
 Chosen Path: "${chosenPath}"
 Simulation Results: ${JSON.stringify(simulationResult, null, 2)}
+${decisionContext ? `Decision Context (Use this extensively): ${decisionContext}` : ''}
 
 Create a detailed, specific storyline (2-3 paragraphs) showing how their life unfolds over 6-12 months after making this choice.
 
@@ -382,13 +383,20 @@ Output JSON matching this exact schema:
 async function generateSimulation(decisionTitle, branchName, branchDescription, personaStyle = 'analytical', decisionDescription) {
   const prompt = `You are Future-You one year from now. You experienced choosing "${branchName}" for the decision "${decisionTitle}". 
 
-Decision Context: ${decisionDescription || 'No additional context provided'}
+DECISION CONTEXT (CRITICAL - Use this extensively):
+${decisionDescription || 'No additional context provided'}
 
-Branch Description: ${branchDescription}
+BRANCH DESCRIPTION:
+${branchDescription}
 
-Use the decision context to create a more personalized and realistic simulation. The decision context contains important details about your situation, motivations, and circumstances that should inform your future-self reflection.
+INSTRUCTIONS:
+- The decision context above contains detailed information about the user's specific situation, motivations, background, and circumstances gathered through AI clarifying questions
+- Use this context extensively to create a highly personalized and realistic simulation
+- Reference specific details from the decision context in your scenarios and questions
+- Show that you understand their unique situation, not just generic advice
+- Make the simulation feel like it's truly about THEIR specific decision and circumstances
 
-Speak from first-person and be reflective. Produce 5 probing questions that would have helped you make this choice, an optimistic scenario (short paragraph), a challenging scenario (short paragraph), and a short summary of the major tradeoffs.
+Create a first-person reflection that demonstrates deep understanding of their situation. Produce 5 probing questions that would have helped you make this choice, an optimistic scenario (short paragraph), a challenging scenario (short paragraph), and a short summary of the major tradeoffs.
 
 Persona Style: ${personaStyle === 'analytical' ? 'Focus on data, metrics, and logical analysis' : 'Focus on emotions, relationships, and personal impact'}
 

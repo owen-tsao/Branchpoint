@@ -11,7 +11,7 @@ import {
   DecisionTree
 } from './types';
 
-const API_BASE_URL = 'http://localhost:3002';
+const API_BASE_URL = 'http://localhost:3001/dev';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -95,11 +95,12 @@ export const apiClient = {
   },
 
   // Generate Follow-up Decisions
-  generateFollowUpDecisions: async (originalDecision: string, chosenPath: string, simulationResult: any): Promise<{ storyline: string; followUpDecisions: Array<{ name: string; description: string }> }> => {
+  generateFollowUpDecisions: async (originalDecision: string, chosenPath: string, simulationResult: any, decisionContext?: string): Promise<{ storyline: string; followUpDecisions: Array<{ name: string; description: string }> }> => {
     const response = await api.post('/generate-followup-decisions', {
       originalDecision,
       chosenPath,
-      simulationResult
+      simulationResult,
+      decisionContext
     });
     return response.data;
   },
